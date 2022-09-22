@@ -1,5 +1,23 @@
-var Ps;
+/**
+ *
+ * (c) Copyright Ascensio System SIA 2020
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 
+var Ps;
+var sText = '';
 (function(window, undefined){
 	window.oncontextmenu = function(e)
 	{
@@ -9,9 +27,26 @@ var Ps;
 			e.stopPropagation();
 		return false;
     };
+	window.Asc.plugin.init = function (text) {
+        sText = text;
+    };
+    window.Asc.plugin.onThemeChanged = function(theme)
+    {
+        window.Asc.plugin.onThemeChangedBase(theme);
 
-	window.Asc.plugin.init = function () {
-	    var inputsMain = $(".prefs__all-rules").find(".form-control");
+        var rule = ".select2-container--default.select2-container--open .select2-selection__arrow b { border-color : " + window.Asc.plugin.theme["text-normal"] + " !important; }";
+        var styleTheme = document.createElement('style');
+        styleTheme.type = 'text/css';
+        styleTheme.innerHTML = rule;
+        document.getElementsByTagName('head')[0].appendChild(styleTheme);
+
+        $('#floating').css('background', window.Asc.plugin.theme["background-toolbar"]);
+        $('.opened, .hidden').css('border-bottom', '1px dashed ' + window.Asc.plugin.theme["text-normal"]);
+        $('.arrow').css('border-color', window.Asc.plugin.theme["text-normal"]);
+    };
+
+    function SetSavedSettings() {
+        var inputsMain = $(".prefs__all-rules").find(".form-control");
 	    var allInputs = $(inputsMain).closest(".prefs__fieldset").find(".prefs__rule").find(".form-control");
 
         var locale_saved = localStorage.getItem('locale_typograf');
@@ -38,11 +73,51 @@ var Ps;
 	    });
     };
 
+    function hideShowForLocale() {
+        var locale = document.getElementsByClassName("prefs__set-locale")[0].value;
+        if (locale === 'ru') {
+            if ($('#dash-hyphen').hasClass('display-none')) {
+                $('#dash-hyphen').toggleClass('display-none');
+            }
+            if ($('.locale-ru').hasClass('display-none')) {
+                $('.locale-ru').toggleClass('display-none');
+            }
+            if (!$('.locale-en-US').hasClass('display-none')) {
+                $('.locale-en-US').toggleClass('display-none');
+            }
+        }
+        else if (locale === 'en-US') {
+            if ($('#dash-hyphen').hasClass('display-none')) {
+                $('#dash-hyphen').toggleClass('display-none');
+            }
+            if ($('.locale-en-US').hasClass('display-none')) {
+                $('.locale-en-US').toggleClass('display-none');
+            }
+            if (!$('.locale-ru').hasClass('display-none')) {
+                $('.locale-ru').toggleClass('display-none');
+            }
+        }
+        else {
+            if (!$('.locale-ru').hasClass('display-none')) {
+                $('.locale-ru').toggleClass('display-none');
+            }
+            if (!$('.locale-en-US').hasClass('display-none')) {
+                $('.locale-en-US').toggleClass('display-none');
+            }
+            if (!$('#dash-hyphen').hasClass('display-none')) {
+                $('#dash-hyphen').toggleClass('display-none');
+            }
+        }
+    }
+
 	$(document).ready(function () {
 	     $('#select_example').select2({
 			minimumResultsForSearch: Infinity,
 			width : '120px',
 		});
+        SetSavedSettings();
+
+        hideShowForLocale();
 
 		Ps = new PerfectScrollbar("#settings", {suppressScrollX: true});
 
@@ -50,9 +125,7 @@ var Ps;
         $('.prefs__rule-checkbox').wrap("<label></label>");
 
         $("#correct").find(".btn-text-default").click(function() {
-            window.Asc.plugin.executeMethod("GetSelectedText", [], function(sText) {
-                CorrectText(sText);
-            })
+            CorrectText();
         });
 
         $(".hidden").click(function() {
@@ -67,8 +140,8 @@ var Ps;
         });
         $(".button").click(function() {
             $(this).closest(".prefs__fieldset").toggleClass("prefs__fieldset_visible").find(".prefs__group-rules").slideToggle("fast", function() { updateScroll(); });
-            $(this).closest(".prefs__fieldset").find(".arrow").toggleClass("transform");
-
+            $(this).closest(".prefs__fieldset").find(".arrow").toggleClass("down");
+            $(this).closest(".prefs__fieldset").find(".arrow").toggleClass("up");
         });
 
         $(".prefs__all-rules").click(function() {
@@ -88,11 +161,27 @@ var Ps;
         });
         $("#select_example").change(function() {
             localStorage.setItem('locale_typograf', $(this).val());
+            hideShowForLocale();
         });
     });
+    function processText(sTxt){
+        if (sTxt[sTxt.length - 1] === '\n')
+            sTxt = sTxt.slice(0, sTxt.length - 1);
 
-    function CorrectText(sText) {
-        var locale = document.getElementsByClassName("prefs__set-locale")[0].value;
+        sTxt = sTxt.replace(/\r/g, "");
+	    var splittedParas = sTxt.split('\n');
+
+        splittedParas.forEach(function(item, i, splittedParas) {
+            splittedParas[i] = item;
+        });
+
+	    return splittedParas;
+	};
+	function ExecTypograf(sText) {
+	    if (sText == undefined)
+	        return;
+	        
+	    var locale = document.getElementsByClassName("prefs__set-locale")[0].value;
         var tp = new Typograf({locale: [locale]});
         var rules = document.getElementsByClassName("prefs__rule-checkbox");
 
@@ -105,41 +194,65 @@ var Ps;
             }
         }
 
-        var allParasInSelection = sText.split(/\n/);
-        var allParsedParas = [];
-
-        for (var nStr = 0; nStr < allParasInSelection.length; nStr++) {
-            if (allParasInSelection[nStr].search(/	/) === 0) {
-                allParasInSelection[nStr] = allParasInSelection[nStr].replace(/	/, "");
-            }
-            var sSplited = allParasInSelection[nStr].split(/	/);
-
-            sSplited.forEach(function(item, i, sSplited) {
-                allParsedParas.push(item);
-            });
-        }
-
+        var allParsedParas = processText(sText);
         var allTypografedParas = [];
 
         for (var Item = 0; Item < allParsedParas.length; Item++) {
             typografedText = tp.execute(allParsedParas[Item]);
+            typografedText = typografedText.replace(/\n/g, String.fromCharCode(13));
             allTypografedParas.push(typografedText);
         }
 
         Asc.scope.arr = allTypografedParas;
-        window.Asc.plugin.info.recalculate = true;
 
-        var strResult = "";
+        window.Asc.plugin.executeMethod("GetVersion", [], function(version) {
+            if (version === undefined) {
+                var strResult = "";
 
-        for (var Item = 0; Item < allTypografedParas.length; Item++) {
-            if (allTypografedParas[Item] === "")
-                continue;
-            if (Item < allTypografedParas.length - 1)
-                strResult += allTypografedParas[Item] + '\n';
-            else
-                strResult += allTypografedParas[Item];
+                for (var Item = 0; Item < allTypografedParas.length; Item++) {
+                    if (allTypografedParas[Item] === "")
+                        continue;
+                    if (Item < allTypografedParas.length - 1)
+                        strResult += allTypografedParas[Item] + '\n';
+                    else
+                        strResult += allTypografedParas[Item];
+                }
+                window.Asc.plugin.executeMethod("PasteText", [strResult]);
+            }
+            else {
+                window.Asc.plugin.executeMethod("ReplaceTextSmart", [Asc.scope.arr, String.fromCharCode(9), String.fromCharCode(13)], function(isDone) {
+                    if (!isDone)
+                        window.Asc.plugin.callCommand(function() {
+                            Api.ReplaceTextSmart(Asc.scope.arr);
+                        });
+                });
+            }
+        });
+	};
+    function CorrectText() {
+        switch (window.Asc.plugin.info.editorType) {
+            case 'word':
+            case 'slide': {
+                window.Asc.plugin.executeMethod("GetSelectedText", [{Numbering:false, Math: false, TableCellSeparator: '\n', ParaSeparator: '\n', TabSymbol: String.fromCharCode(9)}], function(data) {
+                    sText = data;
+                    ExecTypograf(sText);
+                });
+                break;
+            }
+            case 'cell': {
+                window.Asc.plugin.executeMethod("GetSelectedText", [{Numbering:false, Math: false, TableCellSeparator: '\n', ParaSeparator: '\n', TabSymbol: String.fromCharCode(9)}], function(data) {
+                    if (data == ''){
+                        sText = sText.replace(/\t/g, '\n');
+                        ExecTypograf(sText);
+                    }
+                    else {
+                        sText = data;
+                        ExecTypograf(sText);
+                    }
+                });
+                break;
+            }
         }
-        window.Asc.plugin.executeMethod("PasteText", [strResult]);
     }
 
     function updateScroll()
