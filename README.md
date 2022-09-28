@@ -1,3 +1,7 @@
+## Information
+
+This repository is an archive of plugin-typograf. Now it moved to the marketplace repository [onlyoffice.github.io](https://github.com/ONLYOFFICE/onlyoffice.github.io/tree/master/sdkjs-plugins/content).
+
 ## Overview
 
 The Typograf plugin allows preparing your text for publishing by correcting typography. It helps automatically place non-breaking spaces, remove extra spaces, correct minor typos, insert correct quotes, replace hyphens with dashes, and much more.
